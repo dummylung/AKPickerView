@@ -19,6 +19,7 @@
 @interface AKCollectionViewCell : UICollectionViewCell
 @property (nonatomic, strong) UILabel *label;
 @property (nonatomic, strong) UIImageView *imageView;
+@property (nonatomic, strong) UIImageView *selectedImageView;
 @property (nonatomic, strong) UIFont *font;
 @property (nonatomic, strong) UIFont *highlightedFont;
 @end
@@ -244,6 +245,23 @@
 	if (notifySelection &&
 		[self.delegate respondsToSelector:@selector(pickerView:didSelectItem:)])
 		[self.delegate pickerView:self didSelectItem:item];
+    
+    [self updateSelectedItem];
+}
+
+- (void)updateSelectedItem {
+    [UIView animateWithDuration:0.3 animations:^{
+        for (NSIndexPath *indexPath in self.collectionView.indexPathsForVisibleItems) {
+            AKCollectionViewCell *cell = (AKCollectionViewCell *)[self.collectionView cellForItemAtIndexPath:indexPath];
+            cell.imageView.tintColor = self.tintColor;
+            cell.selectedImageView.tintColor = self.tintColor;
+            cell.selectedImageView.alpha = 0.0;
+        }
+        AKCollectionViewCell *cell = (AKCollectionViewCell *)[self.collectionView cellForItemAtIndexPath:[NSIndexPath indexPathForRow:self.selectedItem inSection:0]];
+        cell.imageView.tintColor = self.highlightedTextColor;
+        cell.selectedImageView.tintColor = self.highlightedTextColor;
+        cell.selectedImageView.alpha = 1.0;
+    }];
 }
 
 - (void)didEndScrolling
@@ -306,7 +324,23 @@
 			[self.delegate pickerView:self configureLabel:cell.label forItem:indexPath.item];
 		}
 	} else if ([self.dataSource respondsToSelector:@selector(pickerView:imageForItem:)]) {
-		cell.imageView.image = [self.dataSource pickerView:self imageForItem:indexPath.item];
+		
+        if ([self.delegate respondsToSelector:@selector(pickerView:configureImageView:forItem:)]) {
+            [self.delegate pickerView:self configureImageView:cell.imageView forItem:indexPath.item];
+        }
+        cell.imageView.image = [self.dataSource pickerView:self imageForItem:indexPath.item];
+        if ([self.dataSource respondsToSelector:@selector(pickerView:selectedImageForItem:)]) {
+            cell.selectedImageView.image = [self.dataSource pickerView:self selectedImageForItem:indexPath.item];
+        }
+        if (indexPath.item == self.selectedItem) {
+            cell.imageView.tintColor = self.highlightedTextColor;
+            cell.selectedImageView.tintColor = self.highlightedTextColor;
+            cell.selectedImageView.alpha = 1.0;
+        } else {
+            cell.imageView.tintColor = self.tintColor;
+            cell.selectedImageView.tintColor = self.tintColor;
+            cell.selectedImageView.alpha = 0.0;
+        }
 	}
 	cell.selected = (indexPath.item == self.selectedItem);
 
@@ -326,6 +360,10 @@
 	} else if ([self.dataSource respondsToSelector:@selector(pickerView:imageForItem:)]) {
 		UIImage *image = [self.dataSource pickerView:self imageForItem:indexPath.item];
 		size.width += image.size.width;
+        if ([self.delegate respondsToSelector:@selector(pickerView:marginForItem:)]) {
+            CGSize margin = [self.delegate pickerView:self marginForItem:indexPath.item];
+            size.width += margin.width * 2;
+        }
 	}
 	return size;
 }
@@ -419,6 +457,12 @@
 	self.imageView.contentMode = UIViewContentModeCenter;
 	self.imageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 	[self.contentView addSubview:self.imageView];
+    
+    self.selectedImageView = [[UIImageView alloc] initWithFrame:self.contentView.bounds];
+    self.selectedImageView.backgroundColor = [UIColor clearColor];
+    self.selectedImageView.contentMode = UIViewContentModeCenter;
+    self.selectedImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.contentView addSubview:self.selectedImageView];
 }
 
 - (id)initWithFrame:(CGRect)frame
